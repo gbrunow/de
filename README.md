@@ -1,2 +1,1 @@
-# de
-A differential evolution python toolbox
+# Differential Evolution Toolbox for Python
