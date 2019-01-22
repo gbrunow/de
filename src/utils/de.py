@@ -1,4 +1,5 @@
 import numpy as np
+from .diversity import control
 
 
 def populate(size: int, min: float, max: float, dimensions: int) -> np.matrix:
@@ -49,6 +50,8 @@ def optimize(
     crossingRate: float,
     fitness,
     generations: int = 1000,
+    controlDiversity: bool = True,
+    alpha: float = 0.06, d=0.1, zeta=1,
 ) -> np.array:
     pop = populate(
         size=populationSize,
@@ -59,6 +62,16 @@ def optimize(
     while True:
         mutants = mutate(population=pop, factor=mutationFactor)
         trials = cross(population=pop, mutants=mutants, rate=crossingRate)
+
+        if (controlDiversity):
+            trials = control(
+                population=pop,
+                trials=trials,
+                g=generation,
+                n=generations,
+                alpha=alpha, d=d, zeta=zeta
+            )
+
         pop = select(population=pop, trials=trials, fitness=fitness)
 
         generation = generation + 1
