@@ -2,16 +2,30 @@ import numpy as np
 from .diversity import control
 
 
-def populate(size: int, min: float, max: float, dimensions: int) -> np.matrix:
+def populate(size: int, boundaries: np.array) -> np.array:
+    '''
+        `returns` matrix containing randomly initialized population
+
+        Parameters
+        ----------
+        `size`:         population size
+        `boundaries`:   array of (`min, max`), required for each dimension.
+    '''
+    boundaries = np.array(boundaries)
+    dimensions = boundaries.shape[0]
+
+    min = boundaries[:, 0].reshape(-1, 1)
+    max = boundaries[:, 1].reshape(-1, 1)
+
     if (size < 4):
         raise ValueError('Population size has to be greater than 4')
-    if (min >= max):
+    if (np.any(min >= max)):
         raise ValueError('Parameter "max" needs to be greater than "min"')
 
-    return (max - min) * np.random.rand(dimensions, size) + min
+    return np.multiply((max - min), np.random.rand(dimensions, size)) + min
 
 
-def mutate(population: np.matrix, factor: float) -> np.matrix:
+def mutate(population: np.array, factor: float) -> np.array:
     if (factor <= 0):
         raise ValueError('Mutation factor has to be greater than zero.')
 
@@ -19,16 +33,15 @@ def mutate(population: np.matrix, factor: float) -> np.matrix:
     return population + mutations
 
 
-def cross(population: np.matrix, mutants: np.matrix, rate: float) -> np.matrix:
+def cross(population: np.array, mutants: np.array, rate: float) -> np.array:
     cross = getWillCross(population=population, rate=rate)
-    trials = np.zeros(population.shape)
+    trials = np.copy(population)
     trials[cross] = mutants[cross]
-    trials[~cross] = population[~cross]
 
     return trials
 
 
-def select(population: np.matrix, trials: np.matrix, fitness) -> np.matrix:
+def select(population: np.array, trials: np.array, fitness) -> np.array:
     popScore = evaluate(agents=population, fitness=fitness)
     trialScore = evaluate(agents=trials, fitness=fitness)
 
@@ -43,21 +56,35 @@ def select(population: np.matrix, trials: np.matrix, fitness) -> np.matrix:
 
 def optimize(
     populationSize: int,
-    dimentions: int,
-    min: float,
-    max: float,
+    boundaries: np.array,
     mutationFactor: float,
     crossingRate: float,
-    fitness,
+    fitness: callable,
     generations: int = 1000,
-    controlDiversity: bool = True,
+    controlDiversity: bool = False,
     alpha: float = 0.06, d=0.1, zeta=1,
 ) -> np.array:
+    '''
+        `returns` global minimum of the objective function
+
+        Parameter
+        ---------
+        `populationSize`:       size of the population that will perform the search
+        `boundaries`:           array of (`min, max`), required for each dimension. Defines the search area.
+        `mutationFactor`:       mutation factor
+        `crossingRate`:         crossing rate
+        `fitness`:              objective function
+        `generations`:          maximum number of generations
+        `controlDiversity`:     set to `true` to enable diversity control
+        `alpha`:                alpha parameter for diversity contro
+        `d`:                    d parameter for diversity contro
+        `zeta`:                 zeta parameter for diversity contro
+    '''
     pop = populate(
         size=populationSize,
-        min=min, max=max,
-        dimensions=dimentions
+        boundaries=boundaries
     )
+
     generation = 0
     while True:
         mutants = mutate(population=pop, factor=mutationFactor)
@@ -85,7 +112,7 @@ def optimize(
     return best
 
 
-def getMutations(population: np.matrix, factor: float) -> np.matrix:
+def getMutations(population: np.array, factor: float) -> np.array:
     NP = population.shape[1]
 
     a = np.random.randint(NP, size=NP)
@@ -100,7 +127,7 @@ def getMutations(population: np.matrix, factor: float) -> np.matrix:
     return mutation
 
 
-def getWillCross(population: np.matrix, rate: float) -> np.matrix:
+def getWillCross(population: np.array, rate: float) -> np.array:
     [dimensions, size] = population.shape
     willCross = np.random.rand(dimensions, size) <= rate
 
@@ -111,5 +138,5 @@ def getWillCross(population: np.matrix, rate: float) -> np.matrix:
     return willCross
 
 
-def evaluate(agents: np.matrix, fitness) -> np.array:
+def evaluate(agents: np.array, fitness) -> np.array:
     return fitness(agents)

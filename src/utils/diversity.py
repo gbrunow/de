@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def control(population: np.matrix, trials: np.matrix, g: int, n: int, alpha: float = 0.06, d=0.1, zeta=1) -> np.matrix:
+def control(population: np.array, trials: np.array, g: int, n: int, alpha: float = 0.06, d=0.1, zeta=1) -> np.array:
     threshhold = getThreshhold(g, n, alpha, d, zeta)
 
     movement = np.absolute(

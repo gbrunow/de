@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def rosenbrock(Xs: np.matrix, a=1, b=100) -> np.matrix:
+def rosenbrock(Xs: np.array, a=1, b=100) -> np.array:
     if (Xs.ndim > 1):
         x0 = Xs[0, :]
         x1 = Xs[1, :]
@@ -12,12 +12,15 @@ def rosenbrock(Xs: np.matrix, a=1, b=100) -> np.matrix:
     return (a - x0) ** 2 + b * (x1 - x0 ** 2) ** 2
 
 
-def rastrigin(Xs: np.matrix, A=10) -> np.matrix:
+def rastrigin(Xs: np.array, A=10) -> np.array:
     N = Xs.shape[0]
     return A * N + np.sum(Xs ** 2 - A * np.cos(2 * np.pi * Xs), axis=0)
 
 
-def shubert(x: np.array, y: np.array) -> np.array:
+def shubert(Xs: np.array) -> np.array:
+    x = Xs[0].reshape(-1)
+    y = Xs[1].reshape(-1)
+
     i = np.arange(1, 6).reshape(-1, 1)
 
     return np.sum(
