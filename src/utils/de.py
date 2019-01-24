@@ -2,17 +2,30 @@ import numpy as np
 from .diversity import control
 
 
-def populate(size: int, boundaries: np.array) -> np.array:
+def populate(size: int, boundaries: np.array, dimensions: int = None) -> np.array:
     '''
-        `returns` matrix containing randomly initialized population
+    `returns` matrix containing randomly initialized population
 
-        Parameters
-        ----------
-        `size`:         population size
-        `boundaries`:   array of (`min, max`), required for each dimension.
+    Parameters
+    ------------
+    `populationSize`:
+        Size of the population that will perform the search.
+    `boundaries`:           
+        Defines the search boundaries.
+        Array of `(min, max)`, required for each dimension 
+            OR
+        Array containing 1 `(min, max)` and `dimensions`, 
+        this will carry over same `boundary` to every dimension.
+    `dimensions` (optional):           
+        Problem dimension. 
+        Will be calculate using `boundaries` if `len(boundaries) > 1`
     '''
-    boundaries = np.array(boundaries)
-    dimensions = boundaries.shape[0]
+
+    if(len(boundaries) > 1 or dimensions is None):
+        boundaries = np.array(boundaries)
+        dimensions = boundaries.shape[0]
+    else:
+        boundaries = np.array(boundaries * dimensions)
 
     min = boundaries[:, 0].reshape(-1, 1)
     max = boundaries[:, 1].reshape(-1, 1)
@@ -60,30 +73,61 @@ def optimize(
     mutationFactor: float,
     crossingRate: float,
     fitness: callable,
-    generations: int = 1000,
+    generations: int,
+    dimensions=None,
+    population: np.array = None,
+    returnPopulation: bool = False,
     controlDiversity: bool = False,
     alpha: float = 0.06, d=0.1, zeta=1,
 ) -> np.array:
     '''
-        `returns` global minimum of the objective function
+    `returns` global minimum of the objective function
 
-        Parameter
-        ---------
-        `populationSize`:       size of the population that will perform the search
-        `boundaries`:           array of (`min, max`), required for each dimension. Defines the search area.
-        `mutationFactor`:       mutation factor
-        `crossingRate`:         crossing rate
-        `fitness`:              objective function
-        `generations`:          maximum number of generations
-        `controlDiversity`:     set to `true` to enable diversity control
-        `alpha`:                alpha parameter for diversity contro
-        `d`:                    d parameter for diversity contro
-        `zeta`:                 zeta parameter for diversity contro
+    Parameters
+    ------------
+    `populationSize`:       
+        Size of the population that will perform the search.
+    `boundaries`:           
+        Defines the search boundaries.
+        Array of `(min, max)`, required for each dimension 
+            OR
+        Array containing 1 `(min, max)` and `dimensions`, 
+        this will carry over same `boundary` to every dimension.
+    `mutationFactor`:       
+        Mutation factor.
+    `crossingRate`:         
+        Crossing rate.
+    `fitness`:              
+        Objective function.
+    `generations`:          
+        Maximum number of generations.
+    `dimensions` (optional):            
+        Problem dimension. 
+        Will be calculate using `boundaries` if `len(boundaries) > 1`
+    `returnPopulation` (optional):
+        Set to `true` to get population instead of best agent
+        default = `False`
+    `population` (optional):
+        Initialized population.
+        Will be randomly generated if not provided (recomended).
+    `controlDiversity` (optional):      
+        Set to `true` to enable diversity control.
+        default = `False`
+    `alpha` (optional):                 
+        Diversity control parameter.
+    `d` (optional):                     
+        Diversity control parameter.
+    `zeta` (optional):                  
+        Diversity control parameter.
     '''
-    pop = populate(
-        size=populationSize,
-        boundaries=boundaries
-    )
+    if(population is None):
+        pop = populate(
+            size=populationSize,
+            boundaries=boundaries,
+            dimensions=dimensions
+        )
+    else:
+        pop = population
 
     generation = 0
     while True:
@@ -104,12 +148,14 @@ def optimize(
         generation = generation + 1
         if (generation == generations):
             break
+    if(not returnPopulation):
+        evaluation = evaluate(agents=pop, fitness=fitness)
+        bestIndex = np.argmin(evaluation)
+        best = pop[:, bestIndex]
 
-    evaluation = evaluate(agents=pop, fitness=fitness)
-    bestIndex = np.argmin(evaluation)
-    best = pop[:, bestIndex]
-
-    return best
+        return best
+    else:
+        return pop
 
 
 def getMutations(population: np.array, factor: float) -> np.array:
