@@ -65,7 +65,7 @@ def optimize(
 
     conquerPopulation = dividedCandidates
 
-    mutationFactor = mutationFactor * 1.25
+    mutationFactor = mutationFactor * 1.5
 
     return de.optimize(
         populationSize=populationSize,
