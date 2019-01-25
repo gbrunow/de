@@ -14,7 +14,8 @@ def optimize(
     dimensions=None,
     controlDiversity: bool = False,
     alpha: float = 0.06, d=0.1, zeta=1,
-    increaseMutation: bool = False
+    increaseMutation: bool = False,
+    conquerMutationFactor: float = None,
 ) -> np.array:
 
     if(len(boundaries) > 1 or dimensions is None):
@@ -65,7 +66,10 @@ def optimize(
 
     conquerPopulation = dividedCandidates
 
-    mutationFactor = mutationFactor * 1.5
+    if (conquerMutationFactor is not None):
+        mutationFactor = conquerMutationFactor
+    elif(increaseMutation):
+        mutationFactor = mutationFactor * 1.25
 
     return de.optimize(
         populationSize=populationSize,
