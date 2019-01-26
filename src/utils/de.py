@@ -60,11 +60,14 @@ def select(population: np.array, trials: np.array, fitness) -> np.array:
 
     # copying to avoiding side effects, could use reference to improve performance
     # some testing to compare performance impact may be necessary
-    generation = np.copy(trials)
-    betterParents = popScore < trialScore
-    generation[:, betterParents] = population[:, betterParents]
+    generation = np.copy(population)
+    improvements = trialScore < popScore
+    generation[:, improvements] = trials[:, improvements]
 
-    return generation
+    evaluation = np.copy(popScore)
+    evaluation[improvements] = trialScore[improvements]
+
+    return [generation, evaluation]
 
 
 def optimize(
@@ -73,12 +76,14 @@ def optimize(
     mutationFactor: float,
     crossingRate: float,
     fitness: callable,
-    generations: int,
-    dimensions=None,
+    maxgens: int = None,
+    stopDiff: float = 1e-5,
+    dimensions: int = None,
     population: np.array = None,
     returnPopulation: bool = False,
     controlDiversity: bool = False,
     alpha: float = 0.06, d=0.1, zeta=1,
+    log: bool = False,
 ) -> np.array:
     '''
     `returns` global minimum of the objective function
@@ -99,19 +104,24 @@ def optimize(
         Crossing rate.
     `fitness`:              
         Objective function.
-    `generations`:          
+    `maxgens`:          
         Maximum number of generations.
+    `stopDiff`:
+        Diff stop criteria.
+        Stop if difference between worst and best trial vectors
+        is smaller than `stopDiff`.
+        default = `1e-5`
     `dimensions` (optional):            
         Problem dimension. 
         Will be calculate using `boundaries` if `len(boundaries) > 1`
     `returnPopulation` (optional):
-        Set to `true` to get population instead of best agent
+        Set to `True` to get population instead of best agent
         default = `False`
     `population` (optional):
         Initialized population.
         Will be randomly generated if not provided (recomended).
     `controlDiversity` (optional):      
-        Set to `true` to enable diversity control.
+        Set to `True` to enable diversity control.
         default = `False`
     `alpha` (optional):                 
         Diversity control parameter.
@@ -129,6 +139,11 @@ def optimize(
     else:
         pop = population
 
+    # popArchive = None
+    # fitnessArchive = None
+    # allTimeBest = None
+    # allTimeBestFitness = None
+
     generation = 0
     while True:
         mutants = mutate(population=pop, factor=mutationFactor)
@@ -139,23 +154,54 @@ def optimize(
                 population=pop,
                 trials=trials,
                 g=generation,
-                n=generations,
+                n=maxgens,
                 alpha=alpha, d=d, zeta=zeta
             )
 
-        pop = select(population=pop, trials=trials, fitness=fitness)
+        [pop, evaluation] = select(
+            population=pop,
+            trials=trials,
+            fitness=fitness
+        )
+
+        # popArchive = concat(new=pop, archive=popArchive)
+        # fitnessArchive = concat(new=evaluation, archive=fitnessArchive)
+
+        currBest = np.min(evaluation)
+        currWorst = np.max(evaluation)
+        diff = currWorst - currBest
+
+        # if (allTimeBestFitness is None or currBest < allTimeBestFitness):
+        #     allTimeBestFitness = currBest
+        #     allTimeBest = pop[:, np.argmin(evaluation)]
 
         generation = generation + 1
-        if (generation == generations):
-            break
-    if(not returnPopulation):
-        evaluation = evaluate(agents=pop, fitness=fitness)
-        bestIndex = np.argmin(evaluation)
-        best = pop[:, bestIndex]
 
-        return best
-    else:
+        if (generation == maxgens or diff <= stopDiff):
+            if(log):
+                print(f'finished at generation {generation}, diff {diff}')
+            break
+
+    if(returnPopulation):
         return pop
+    else:
+        evaluation = evaluate(agents=pop, fitness=fitness)
+        best = pop[:, np.argmin(evaluation)]
+
+        # return [best, allTimeBest]
+        return best
+
+
+def concat(new: np.array, archive: np.array) -> np.array:
+    if (archive is None):
+        return new
+    else:
+        x = 0
+        if (archive.ndim > 1):
+            x = 1
+        else:
+            x = 0
+        return np.concatenate([archive, new], axis=x)
 
 
 def getMutations(population: np.array, factor: float) -> np.array:
@@ -186,3 +232,14 @@ def getWillCross(population: np.array, rate: float) -> np.array:
 
 def evaluate(agents: np.array, fitness) -> np.array:
     return fitness(agents)
+
+
+def normalize(data: np.array) -> np.array:
+    maximum = np.max(data)
+    minimum = np.min(data)
+
+    den = maximum - minimum
+    if(den == 0):
+        den = 1
+
+    return (data - minimum)/den

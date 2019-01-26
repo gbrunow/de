@@ -8,14 +8,16 @@ def optimize(
     mutationFactor: float,
     crossingRate: float,
     fitness: callable,
-    generations: int,
-    groups: int = None,
-    groupGenerations: int = None,
+    maxgens: int = None,
+    stopDiff: float = 1e-5,
     dimensions=None,
+    returnPopulation: bool = False,
+    subcomps: int = None,
+    maxsubgens: int = None,
     controlDiversity: bool = False,
     alpha: float = 0.06, d=0.1, zeta=1,
-    increaseMutation: bool = False,
     conquerMutationFactor: float = None,
+    log: bool = False,
 ) -> np.array:
 
     if(len(boundaries) > 1 or dimensions is None):
@@ -24,42 +26,43 @@ def optimize(
     else:
         boundaries = np.array(boundaries * dimensions)
 
-    if (groups is None):
+    if (subcomps is None):
         meanSearchAmplitude = np.sum(np.absolute(np.mean(boundaries, axis=0)))
-        groups = int(round(max(meanSearchAmplitude / 10, 10)))
+        subcomps = int(round(max(meanSearchAmplitude / 10, 10)))
 
-    # ---- divide ---- #
-    if(groupGenerations is None):
-        groupGenerations = round(generations / groups)
+    # ------------------ divide ------------------ #
+    if(maxsubgens is None):
+        maxsubgens = round(maxgens / subcomps)
 
-    groupBounds = np.zeros((dimensions, groups + 1))
+    subcompBounds = np.zeros((dimensions, subcomps + 1))
     for d in range(boundaries.shape[0]):
-        groupBounds[d, :] = np.linspace(
-            boundaries[d, 0], boundaries[d, 1], groups + 1)
+        subcompBounds[d, :] = np.linspace(
+            boundaries[d, 0], boundaries[d, 1], subcomps + 1)
 
-    dividedPopulation = np.zeros((dimensions, populationSize * groups))
+    dividedPopulation = np.zeros((dimensions, populationSize * subcomps))
 
-    for g in range(groups):
-        groupStart = g * populationSize
-        groupEnd = (g + 1) * populationSize
+    for sc in range(subcomps):
+        subcompStart = sc * populationSize
+        subcompEnd = (sc + 1) * populationSize
 
         partialPopulation = optimizeGroup(
             populationSize=populationSize,
-            boundaries=groupBounds,
+            boundaries=subcompBounds,
             mutationFactor=mutationFactor,
             crossingRate=crossingRate,
             fitness=fitness,
-            generations=groupGenerations,
-            group=g
+            maxgens=maxsubgens,
+            subcomponent=sc,
+            stopDiff=stopDiff,
         )
 
-        dividedPopulation[:, groupStart:groupEnd] = partialPopulation
+        dividedPopulation[:, subcompStart:subcompEnd] = partialPopulation
 
     dividedFitness = fitness(dividedPopulation)
-    # ---- conquer ---- #
+    # --------------- end of divide --------------- #
 
-    # get N best agents from divide population
-    dividedCandidates = dividedPopulation[
+    # ------------------ conquer ------------------ #
+    dividedCandidates = dividedPopulation[  # get N best agents from divide population
         :,
         dividedFitness.argsort()[:populationSize]
     ]
@@ -68,8 +71,6 @@ def optimize(
 
     if (conquerMutationFactor is not None):
         mutationFactor = conquerMutationFactor
-    elif(increaseMutation):
-        mutationFactor = mutationFactor * 1.25
 
     return de.optimize(
         populationSize=populationSize,
@@ -77,9 +78,13 @@ def optimize(
         mutationFactor=mutationFactor,
         crossingRate=crossingRate,
         fitness=fitness,
-        generations=groupGenerations,
+        maxgens=maxgens,
         population=conquerPopulation,
+        stopDiff=stopDiff,
+        returnPopulation=returnPopulation,
+        log=log
     )
+    # -------------- end of conquer --------------- #
 
 
 def optimizeGroup(
@@ -88,10 +93,11 @@ def optimizeGroup(
     mutationFactor: float,
     crossingRate: float,
     fitness: callable,
-    generations: int,
-    group: int
+    maxgens: int,
+    subcomponent: int,
+    stopDiff: float,
 ) -> np.array:
-    bounds = boundaries[:, group: (group + 2)]
+    bounds = boundaries[:, subcomponent: (subcomponent + 2)]
 
     return de.optimize(
         populationSize=populationSize,
@@ -99,6 +105,7 @@ def optimizeGroup(
         mutationFactor=mutationFactor,
         crossingRate=crossingRate,
         fitness=fitness,
-        generations=generations,
+        maxgens=maxgens,
+        stopDiff=stopDiff,
         returnPopulation=True
     )
