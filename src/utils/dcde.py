@@ -59,6 +59,8 @@ def optimize(
             maxgens=maxsubgens,
             subcomponent=sc,
             stopDiff=stopDiff,
+            minPopulationSize=minPopulationSize,
+            popReductionEnabled=popReductionEnabled,
         )
 
         dividedPopulation[:, subcompStart:subcompEnd] = partialPopulation
@@ -101,6 +103,8 @@ def optimizeGroup(
     maxgens: int,
     subcomponent: int,
     stopDiff: float,
+    minPopulationSize: int,
+    popReductionEnabled: bool,
 ) -> np.array:
     bounds = boundaries[:, subcomponent: (subcomponent + 2)]
 
@@ -112,5 +116,7 @@ def optimizeGroup(
         fitness=fitness,
         maxgens=maxgens,
         stopDiff=stopDiff,
+        minPopulationSize=minPopulationSize,
+        popReductionEnabled=popReductionEnabled,
         returnPopulation=True
     )
