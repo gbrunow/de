@@ -1,5 +1,8 @@
-from . import de
+#!/usr/bin/env python3
+
 import numpy as np
+from . import de, population
+# from .population.selection import select
 
 
 def optimize(
@@ -11,6 +14,8 @@ def optimize(
     maxgens: int = None,
     stopDiff: float = 1e-5,
     dimensions=None,
+    minPopulationSize: int = 4,
+    popReductionEnabled: bool = True,
     returnPopulation: bool = False,
     subcomps: int = None,
     maxsubgens: int = None,
