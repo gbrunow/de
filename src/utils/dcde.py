@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 import numpy as np
-from . import de, population
-# from .population.selection import select
+from . import de
+from .population.common import processBoundaries, concat, best
 
 
 def optimize(
@@ -15,21 +15,15 @@ def optimize(
     stopDiff: float = 1e-5,
     dimensions=None,
     minPopulationSize: int = 4,
-    popReductionEnabled: bool = True,
+    reducePopulation: bool = True,
     returnPopulation: bool = False,
     subcomps: int = None,
     maxsubgens: int = None,
-    controlDiversity: bool = False,
-    alpha: float = 0.06, d=0.1, zeta=1,
     conquerMutationFactor: float = None,
     log: bool = False,
 ) -> np.array:
 
-    if(len(boundaries) > 1 or dimensions is None):
-        boundaries = np.array(boundaries)
-        dimensions = boundaries.shape[0]
-    else:
-        boundaries = np.array(boundaries * dimensions)
+    [boundaries, dimensions] = processBoundaries(boundaries, dimensions)
 
     if (subcomps is None):
         meanSearchAmplitude = np.sum(np.absolute(np.mean(boundaries, axis=0)))
@@ -44,12 +38,9 @@ def optimize(
         subcompBounds[d, :] = np.linspace(
             boundaries[d, 0], boundaries[d, 1], subcomps + 1)
 
-    dividedPopulation = np.zeros((dimensions, populationSize * subcomps))
+    dividedPopulation = None
 
     for sc in range(subcomps):
-        subcompStart = sc * populationSize
-        subcompEnd = (sc + 1) * populationSize
-
         partialPopulation = optimizeGroup(
             populationSize=populationSize,
             boundaries=subcompBounds,
@@ -60,21 +51,20 @@ def optimize(
             subcomponent=sc,
             stopDiff=stopDiff,
             minPopulationSize=minPopulationSize,
-            popReductionEnabled=popReductionEnabled,
+            reducePopulation=reducePopulation,
         )
 
-        dividedPopulation[:, subcompStart:subcompEnd] = partialPopulation
+        dividedPopulation = concat(dividedPopulation, partialPopulation)
 
     dividedFitness = fitness(dividedPopulation)
     # --------------- end of divide --------------- #
 
     # ------------------ conquer ------------------ #
-    dividedCandidates = dividedPopulation[  # get N best agents from divide population
-        :,
-        dividedFitness.argsort()[:populationSize]
-    ]
-
-    conquerPopulation = dividedCandidates
+    conquerPopulation = best(
+        population=dividedPopulation,
+        evaluation=dividedFitness,
+        n=populationSize
+    )
 
     if (conquerMutationFactor is not None):
         mutationFactor = conquerMutationFactor
@@ -104,7 +94,9 @@ def optimizeGroup(
     subcomponent: int,
     stopDiff: float,
     minPopulationSize: int,
-    popReductionEnabled: bool,
+    reducePopulation: bool,
+
+
 ) -> np.array:
     bounds = boundaries[:, subcomponent: (subcomponent + 2)]
 
@@ -117,6 +109,6 @@ def optimizeGroup(
         maxgens=maxgens,
         stopDiff=stopDiff,
         minPopulationSize=minPopulationSize,
-        popReductionEnabled=popReductionEnabled,
+        reducePopulation=reducePopulation,
         returnPopulation=True
     )

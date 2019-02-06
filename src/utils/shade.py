@@ -1,8 +1,8 @@
-#!/usr/bin/env python3
+# #!/usr/bin/env python3
 
 import numpy as np
 from .population import diversity, reduction
-from .population.common import populate, mutate, cross, evaluate, select, best, shouldStop, processBoundaries, validate, result
+from .population.common import populate, mutate, cross, evaluate, select, best, shouldStop, processBoundaries, validate, result, archive
 
 
 def optimize(
@@ -16,6 +16,7 @@ def optimize(
     dimensions: int = None,
     minPopulationSize: int = 4,
     reducePopulation: bool = True,
+    archiveSize: int = None,
     population: np.array = None,
     returnPopulation: bool = False,
     log: bool = False,
@@ -54,9 +55,12 @@ def optimize(
         Minimum population size used by the population reduction algorithm.
         Must be greater or equals to `4`.
         default = `4`
-    `enablePopulationReduction` (optional):
+    `reducePopulation` (optional):
         Enables population size reduction.
         default = `True`
+    `archiveSize` (optional):
+        Defines the size of the external archive.
+        default = `populationSize`
     `returnPopulation` (optional):
         Set to `True` to get population instead of best agent
         default = `False`
@@ -74,6 +78,9 @@ def optimize(
     if(not valid):
         raise ValueError('Input parameters are not valid', errors)
 
+    if (archiveSize is None):
+        archiveSize = populationSize
+
     [boundaries, dimensions] = processBoundaries(boundaries, dimensions)
 
     if(population is None):
@@ -85,18 +92,26 @@ def optimize(
     else:
         pop = population
 
+    externalArchive = None
+
     generation = 0
     while True:
         mutants = mutate(population=pop, factor=mutationFactor)
         trials = cross(population=pop, mutants=mutants, rate=crossingRate)
 
-        [selected, evaluation, _] = select(
+        [selected, evaluation, rejected] = select(
             population=pop,
             trials=trials,
             fitness=fitness
         )
 
         pop = selected
+
+        externalArchive = archive(
+            externalArchive=externalArchive,
+            rejected=rejected,
+            archiveSize=archiveSize
+        )
 
         if (reducePopulation):
             pop = reduction.linear(
